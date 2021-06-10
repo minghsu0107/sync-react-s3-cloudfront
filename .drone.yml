@@ -1,0 +1,33 @@
+kind: pipeline
+type: docker
+name: default
+
+workspace:
+  path: /app
+
+steps:
+- name: build-react-app
+  image: node:15.14
+  commands:
+  - npm install && npm run build
+- name: sync-react-app
+  image: amazon/aws-cli:2.1.29
+  environment:
+    AWS_ACCESS_KEY_ID: 
+      from_secret: aws_access_key_id
+    AWS_SECRET_ACCESS_KEY:
+      from_secret: aws_secret_access_key
+    AWS_DEFAULT_REGION:
+      from_secret: aws_default_region
+    CLOUDFRONT_DISTRIBUTION_ID:
+      from_secret: cloudfront_distribution_id
+    BUCKET:
+      from_secret: bucket
+  commands:
+  - aws s3 sync ./build/ s3://$BUCKET/ --delete --acl public-read
+  - aws cloudfront create-invalidation --distribution-id ${CLOUDFRONT_DISTRIBUTION_ID} --paths "/*" 
+  when:
+    event:
+    - push
+    branch:
+    - main
