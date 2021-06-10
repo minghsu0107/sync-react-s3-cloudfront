@@ -1,70 +1,39 @@
-# Getting Started with Create React App
+# React App Deployment with Amazon S3 and CloudFront
+This repository demonstrates how to build a CD pipeline that deploys a React application to Amazon S3 and syncing it with Amazon CloudFront, a content delivery network (CDN) managed by AWS.
+## Why?
+It is quite convenient to serve static website by configuring a bucket for website hosting. However, we can only access it via HTTP protocol. A great way to serve our contents is to place it in Amazon CloudFront. This way, not only can we benefit from HTTPS protection but also the out-of-the-box caching mechanism CloudFront provides for us.
+## Prerequisite
+1. A S3 bucket with (static website hosting)[https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteHosting.html] enabled. Be sure that the index document is set to `index.html`.
+2. A CloudFront distribution with its origin set to the S3 website endpoint. The endpoint looks like `BUCKET.s3-website.us-east-2.amazonaws.com` where `BUCKET` is a placeholder of your S3 bucket name.
+## CD Pipeline
+We are using [Drone CI](https://www.drone.io) as our automation tool. There are two main steps in the pipeline, which are building React applcation and deploying to AWS.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+1. **Building React application** - In this step, we install all dependencies and create a minified bundle to `build/` folder.
 
-## Available Scripts
+```yaml
+- name: build-react-app
+  image: node:15.14
+  commands:
+  - npm install && npm run build
+```
 
-In the project directory, you can run:
+2. **Deploy to AWS** - In this step, we upload the minified bundle to S3 and invalidate the CloudFront cache in order to see the updated website instantly.
 
-### `npm start`
-
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```yaml
+- name: sync-react-app
+  image: amazon/aws-cli:2.1.29
+  environment:
+    AWS_ACCESS_KEY_ID: 
+      from_secret: aws_access_key_id
+    AWS_SECRET_ACCESS_KEY:
+      from_secret: aws_secret_access_key
+    AWS_DEFAULT_REGION:
+      from_secret: aws_default_region
+    CLOUDFRONT_DISTRIBUTION_ID:
+      from_secret: cloudfront_distribution_id
+    BUCKET:
+      from_secret: bucket
+  commands:
+  - aws s3 sync ./build/ s3://$BUCKET/ --delete --acl public-read
+  - aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DISTRIBUTION_ID --paths "/*" 
+```
