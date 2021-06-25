@@ -1,5 +1,5 @@
 # React App Deployment with Amazon S3 and CloudFront
-This repository demonstrates how to build a CD pipeline that deploys a React application to Amazon S3 and syncing it with Amazon CloudFront, a content delivery network (CDN) managed by AWS.
+This repository demonstrates how to build a CD pipeline that deploys a React application to Amazon S3 and syncs it with Amazon CloudFront, a content delivery network (CDN) managed by AWS.
 ## Why?
 It is quite convenient to configure a S3 bucket for static website hosting. However, we can only access it via HTTP protocol. A great way to serve our contents is to place it in Amazon CloudFront. This way, not only can we benefit from HTTPS protection but also the out-of-the-box caching mechanism CloudFront provides for us.
 ## Prerequisite
